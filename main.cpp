@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include "glut.h"
 #include "glext.h"
-#include <string.h> 
+#include <string.h>
 
 #define Wsize 320
 #define Hsize 200
@@ -19,7 +19,7 @@
 float Wsize2 = Wsize / 2.;
 float Hsize2 = Hsize / 2.;
 
-int rx = 20, ry = 20; // 레이맨의 현재 좌표
+int rx = 150, ry = 150; // 레이맨의 현재 좌표
 
 // 팔레트 구조체
 struct Color
@@ -40,6 +40,46 @@ struct cel_data
 };
 cel_data rayman; // 레이맨 stand
 cel_data back; // 배경
+
+
+// 키 체크 관련 함수 -------------------------------------
+
+// 일반 키 체크 함수
+void Keyboard(unsigned char Key, int X, int Y)
+{
+    if (Key == 27) exit(0);    //ESC 누를시에 루프종료(게임 종료)
+}
+
+
+// 특수 키 체크 함수
+void DoKeyboard(int key, int x, int y)
+{
+    if (key == GLUT_KEY_LEFT) // 왼쪽 키
+    {
+        rx -= 1;
+    }
+    if (key == GLUT_KEY_RIGHT) // 오른쪽 키
+    {
+        rx += 1;
+    }
+    if (key == GLUT_KEY_UP) // 위쪽 키
+    {
+        ry -= 1;
+    }
+    if (key == GLUT_KEY_DOWN) // 아래쪽 키
+    {
+        ry += 1;
+    }
+
+    // 현재 창 다시 표시하는 함수 : 이래야 레이맨이 움직임
+    glutPostRedisplay();
+}
+
+
+void doReleaseKey(int keyReleased, int x, int y)
+{
+
+}
 
 
 // 배경 이미지를 읽는 함수
@@ -99,6 +139,7 @@ void load_pal(char* filename)
 void glutLeaveMainLoop()
 {
     free(rayman.imageData);
+    free(back.imageData);
 }
 
 
@@ -183,7 +224,7 @@ void Render()
 //------------------------------------------------------------------------------
 int main()
 {
-    // atexit : 종료할 때 수행하는 함수 
+    // atexit : 종료할 때 수행하는 함수
     atexit(glutLeaveMainLoop);
 
     // 레이맨 이미지 읽어오기
@@ -201,7 +242,13 @@ int main()
     glutInitWindowSize(Wsize, Hsize);       // 창크기
     glutCreateWindow("Gamejigi DOS Rayman 교육");     // 창제목
 
-    glClearColor(0.0, 0.0, 0.0, 0.0);  // R,G,B,A 배경:파란색 
+    glClearColor(0.0, 0.0, 0.0, 0.0);  // R,G,B,A 배경:파란색
+
+
+    // 키 체크
+    glutKeyboardFunc(Keyboard); // 일반 키 체크
+    glutSpecialFunc(DoKeyboard); // 특수키 체크
+    glutSpecialUpFunc(doReleaseKey); // 키보드를 놓았을때 작동
 
     glutDisplayFunc(Render); // 화면출력
 
