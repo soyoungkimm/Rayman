@@ -12,20 +12,21 @@
 #include "glext.h"
 #include <string.h>
 
-#define Wsize 320
+#define Wsize 800
 #define Hsize 200
 #define PaletteSize 100000 // 팔레트 사이즈
 
 float Wsize2 = Wsize / 2.;
 float Hsize2 = Hsize / 2.;
 
-int rx = 80, ry = 80; // 레이맨의 현재 좌표
+int rx = 50, ry = 170; // 레이맨의 현재 좌표
 int rayman_dir = 1;   // 0 : 왼쪽, 1 : 오른쪽
 int fps = 0; //  frame 카운터
 float fps_time = 1000.0 / 30.0; // 1 frame time
 int rayman_frame = 0;     // 애니메이션 장면 위치
 bool keys[256];
 bool jump_on = false;
+
 
 // 팔레트 구조체
 struct Color
@@ -50,6 +51,17 @@ cel_data stand[2]; // 레이맨 stand
 cel_data walk[8]; // 레이맨 walk
 cel_data craw[2]; // 레이맨 craw
 cel_data jump[6]; // 레이맨 jump
+cel_data land[3]; // 지형
+
+
+// 오브젝트 구조체
+struct object
+{
+    int kind;        // 물체종류
+    int x, y, w, h;    // 출력좌표, 너비, 높이
+};
+object obj[20];
+int n_obj;
 
 
 void WalkAnimation(int fps) {
@@ -258,6 +270,24 @@ void doReleaseKey(int keyReleased, int x, int y)
 }
 
 
+// 맵 지형을 읽는 함수
+void load_map() {
+
+    // 파일 열기
+    FILE* pFile;
+    fopen_s(&pFile, "./data/map_n.txt", "r");
+
+    // 오브젝트들 구조체에 set
+    fscanf(pFile, "%d\n", &n_obj); // 물체 개수
+    for (int i = 0; i < n_obj; i++) {
+        fscanf(pFile, "%d %d %d %d %d\n", &obj[i].kind, &obj[i].x, &obj[i].y, &obj[i].w, &obj[i].h);
+    }
+
+    // 파일 닫기
+    fclose(pFile);
+}
+
+
 // 배경 이미지를 읽는 함수
 void load_back(char* filename)
 {
@@ -274,6 +304,10 @@ void load_back(char* filename)
     back.height = 200;
 
     // 파일 읽어오기
+    getc(pFile);
+    getc(pFile);
+    getc(pFile);
+    getc(pFile);
     back.imageData = (unsigned char*)malloc(sizeof(unsigned char) * (back.width * back.height));
     fread(back.imageData, sizeof(unsigned char), back.width * back.height, pFile);
 
@@ -369,6 +403,8 @@ void put_cel(int is_rayman, int dir, int x, int y, cel_data* cel)
         y -= cel->height;
     }
 
+    //y = Hsize - y;
+
     int count = 0;
     for (int i = 0; i < cel->height; i++) {
         for (int j = 0; j < cel->width; j++) {
@@ -376,6 +412,22 @@ void put_cel(int is_rayman, int dir, int x, int y, cel_data* cel)
             else set_pixel(x + j, y + i, cel->imageData[count]); // 오른쪽 출력
             count++;
         }
+    }
+}
+
+
+// land 그리는 함수
+void put_land_cel() {
+
+    int count = 0;
+    for (int k = 0; k < n_obj; k++) {
+        for (int i = 0; i < land[obj[k].kind].height; i++) {
+            for (int j = 0; j < land[obj[k].kind].width; j++) {
+                set_pixel(obj[k].x + j, Hsize - obj[k].y + i, land[obj[k].kind].imageData[count]);
+                count++;
+            }
+        }
+        count = 0;
     }
 }
 
@@ -393,6 +445,9 @@ void Render()
 
     // 배경 출력
     put_cel(0, 1, 0, 0, &back);
+
+    // 맵 지형 출력
+    put_land_cel();
 
     // 레이맨 출력
     put_cel(1, rayman_dir, rx, ry, &rayman);
@@ -437,11 +492,19 @@ int main()
     load_cel((char*)"JUMP4.CEL", &jump[4]);
     load_cel((char*)"JUMP5.CEL", &jump[5]);
 
+    // land 이미지 읽어오기
+    load_cel((char*)"LAND0.CEL", &land[0]);
+    load_cel((char*)"LAND1.CEL", &land[1]);
+    load_cel((char*)"LAND2.CEL", &land[2]);
+
     // 팔레트 읽어오기
     load_pal((char*)"ALL.PAL");
 
     // 배경 읽어오기
     load_back((char*)"BACK30.CEL");
+
+    // 맵 지형 읽어오기
+    load_map();
 
     glutInitDisplayMode(GLUT_RGBA); // RGB 그래픽모드 지정
 
@@ -449,7 +512,7 @@ int main()
     glutInitWindowSize(Wsize, Hsize);       // 창크기
     glutCreateWindow("Gamejigi DOS Rayman 교육");     // 창제목
 
-    glClearColor(0.0, 0.0, 0.0, 0.0);  // R,G,B,A 배경:파란색
+    glClearColor(0.0, 0.0, 1.0, 0.0);  // R,G,B,A 배경:파란색
 
     glutTimerFunc(fps_time, Timer, 1); //타이머: fps초 뒤에 Timer 함수 실행
 
