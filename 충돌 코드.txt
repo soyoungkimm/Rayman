@@ -1,0 +1,14 @@
+cel_data obj_col[9]; // 임시
+cel_data rayman_col; // 임시
+   
+// 충돌체 임시 출력
+    for (int i = 0; i < 9; i++) {
+        obj_col[i].imageData = (unsigned char*)"255";
+        obj_col[i].width = objCol[i].right - objCol[i].left;
+        obj_col[i].height = objCol[i].top - objCol[i].bottom;
+        put_cel(0, 0, objCol[i].left, objCol[i].bottom, &obj_col[i]);
+    }
+    rayman_col.imageData = (unsigned char*)"255";
+    rayman_col.width = raymanCol.right - raymanCol.left;
+    rayman_col.height = raymanCol.top - raymanCol.bottom;
+    put_cel(0, 0, raymanCol.left, raymanCol.top, &rayman_col);

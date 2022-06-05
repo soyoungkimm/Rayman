@@ -19,14 +19,16 @@
 float Wsize2 = Wsize / 2.;
 float Hsize2 = Hsize / 2.;
 
-int rx = 50, ry = 170; // 레이맨의 현재 좌표
+int rx = 150, ry = 100; // 레이맨의 현재 좌표
 int rayman_dir = 1;   // 0 : 왼쪽, 1 : 오른쪽
 int fps = 0; //  frame 카운터
 float fps_time = 1000.0 / 30.0; // 1 frame time
 int rayman_frame = 0;     // 애니메이션 장면 위치
+int rayman_jump_frame = 0;     // 애니메이션 점프 장면 위치
 bool keys[256];
 bool jump_on = false;
-
+bool land_on = false;
+int old_obj = -1;    // 없는 obj 번호로 초기화
 
 // 팔레트 구조체
 struct Color
@@ -54,6 +56,7 @@ cel_data jump[6]; // 레이맨 jump
 cel_data land[3]; // 지형
 
 
+
 // 오브젝트 구조체
 struct object
 {
@@ -64,6 +67,19 @@ object obj[20];
 int n_obj;
 
 
+// 충돌체 구조체
+struct colider // 충돌 직사각형(충돌체)
+{
+    float left;
+    float right;
+    float top;
+    float bottom;
+};
+colider raymanCol;
+colider objCol[9];
+
+
+// 걷기 애니메이션
 void WalkAnimation(int fps) {
     if (rayman_frame >= 8) rayman_frame = 0;
 
@@ -104,6 +120,7 @@ void WalkAnimation(int fps) {
 }
 
 
+// 기어다니기 애니메이션
 void CrawAnimation(int fps) {
     if (fps % 3 == 0) {
         if (rayman_frame == 0) {
@@ -114,6 +131,89 @@ void CrawAnimation(int fps) {
             rayman_frame = 0;
             rayman = craw[1];
         }
+    }
+}
+
+
+// 충돌 처리(체크)
+void collideCheck() {
+    for (int i = 0; i < n_obj; i++)
+    {
+        if (raymanCol.left <= objCol[i].right && raymanCol.top >= objCol[i].bottom &&
+            raymanCol.right >= objCol[i].left && raymanCol.bottom <= objCol[i].top)
+        {
+            //모든 물체들(obj[i])과 레이맨이 충돌하는지 조사하여 해당물체에 대한 처리
+            land_on = true;
+            if (i != old_obj) {
+                // 충돌 처리
+                old_obj = i;
+                jump_on = false;
+            }
+            if (i == 8 || i == 7 || i == 6 || i == 5) {
+                rayman_jump_frame = 0;
+            }
+            break;
+        }
+        else {
+            land_on = false;
+        }
+    }
+}
+
+
+// 중력 처리
+void gravity() {
+    if (!land_on && !jump_on) {
+        raymanCol.top += 5;
+        raymanCol.bottom += 5;
+        ry += 5;
+    }
+}
+
+
+// 점프 중 올라갈 때
+void jump_up() {
+    for (int i = 0; i < 40; i++) {
+        collideCheck();
+        if (jump_on) {
+            ry -= 1;
+            raymanCol.top -= 1;
+            raymanCol.bottom -= 1;
+        }
+        else {
+            break;
+        }
+    }
+}
+
+
+// 점프 중 내려갈 때
+void jump_down() {
+    for (int i = 0; i < 40; i++) {
+        collideCheck();
+        if (jump_on) {
+            ry += 1;
+            raymanCol.top += 1;
+            raymanCol.bottom += 1;
+        }
+        else {
+            break;
+        }
+    }
+}
+
+
+// 점프 중 컨트롤키랑 왼/오 눌렀는지 감지
+void check_ctrl_left_right() {
+    if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) {
+        rx -= 10;
+        raymanCol.left -= 10;
+        raymanCol.right -= 10;
+    }
+    else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) {
+        rx += 10;
+        raymanCol.left += 10;
+        raymanCol.right += 10;
     }
 }
 
@@ -129,48 +229,41 @@ void Timer(int Value)
     if (jump_on)
     {
         if (fps % 4 == 0) {
-
-            if (rayman_frame == 8) {
-                ry -= 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 9;
+            if (rayman_jump_frame == 8) {
+                jump_up();
+                check_ctrl_left_right();
+                rayman_jump_frame = 9;
                 rayman = jump[1];
             }
-            else if (rayman_frame == 9) {
-                ry -= 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 10;
+            else if (rayman_jump_frame == 9) {
+                jump_up();
+                check_ctrl_left_right();
+                rayman_jump_frame = 10;
                 rayman = jump[2];
             }
-            else if (rayman_frame == 10) {
-                ry += 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 11;
+            else if (rayman_jump_frame == 10) {
+                jump_down();
+                check_ctrl_left_right();
+                rayman_jump_frame = 11;
                 rayman = jump[3];
             }
-            else if (rayman_frame == 11) {
-                ry += 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 12;
+            else if (rayman_jump_frame == 11) {
+                jump_down();
+                check_ctrl_left_right();
+                rayman_jump_frame = 12;
                 rayman = jump[4];
             }
-            else if (rayman_frame == 12) {
-                ry += 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 13;
+            else if (rayman_jump_frame == 12) {
+                jump_down();
+                check_ctrl_left_right();
+                rayman_jump_frame = 13;
                 rayman = jump[5];
                 jump_on = false;
             }
             else {
-                ry -= 20;
-                if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) rx -= 10;
-                else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) rx += 10;
-                rayman_frame = 8;
+                jump_up();
+                check_ctrl_left_right();
+                rayman_jump_frame = 8;
                 rayman = jump[0];
             }
         }
@@ -180,14 +273,16 @@ void Timer(int Value)
     {
         if (keys[GLUT_KEY_DOWN] && keys[GLUT_KEY_LEFT]) {
             rx -= 5;
+            raymanCol.left -= 5;
+            raymanCol.right -= 5;
             rayman_dir = 0;
-
             CrawAnimation(fps);
         }
         else if (keys[GLUT_KEY_DOWN] && keys[GLUT_KEY_RIGHT]) {
             rx += 5;
+            raymanCol.left += 5;
+            raymanCol.right += 5;
             rayman_dir = 1;
-
             CrawAnimation(fps);
         }
         else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) {
@@ -204,15 +299,17 @@ void Timer(int Value)
         else if (keys[GLUT_KEY_LEFT]) // 왼쪽 키
         {
             rx -= 5;
+            raymanCol.left -= 5;
+            raymanCol.right -= 5;
             rayman_dir = 0;
-
             WalkAnimation(fps);
         }
         else if (keys[GLUT_KEY_RIGHT]) // 오른쪽 키
         {
             rx += 5;
+            raymanCol.left += 5;
+            raymanCol.right += 5;
             rayman_dir = 1;
-
             WalkAnimation(fps);
         }
         else // 그냥 서있을 때
@@ -229,6 +326,12 @@ void Timer(int Value)
             }
         }
     }
+
+    // 중력 처리
+    gravity();
+
+    // 충돌 판정
+    collideCheck();
 
     glutPostRedisplay(); // dokeyboard 있는 것은 삭제
     glutTimerFunc(fps_time, Timer, 1); // 타이머 재호출
@@ -266,6 +369,29 @@ void doReleaseKey(int keyReleased, int x, int y)
     // ctrl 뗌
     if (keys[GLUT_ACTIVE_CTRL]) {
         keys[GLUT_ACTIVE_CTRL] = false;
+    }
+}
+
+
+// 레이맨 충돌체 set 하는 함수
+void set_rayman_colider()
+{
+    // Rayman 충돌 처리의 사각형(충돌체)은 stand[0]레이맨으로 한다.
+    raymanCol.left = rx - (stand[0].width / 2);
+    raymanCol.right = rx + (stand[0].width / 2);
+    raymanCol.top = ry + 13 - 15;
+    raymanCol.bottom = ry + 10 - 15;
+}
+
+
+// 지형 충돌체 set 하는 함수
+void set_obj_colider()
+{
+    for (int i = 0; i < n_obj; i++) {
+        objCol[i].left = obj[i].x - (obj[i].w / 2) + 40;
+        objCol[i].right = obj[i].x + (obj[i].w / 2) + 40;
+        objCol[i].top = (Hsize - obj[i].y) + 8 + 30;
+        objCol[i].bottom = (Hsize - obj[i].y) + 30;
     }
 }
 
@@ -418,7 +544,6 @@ void put_cel(int is_rayman, int dir, int x, int y, cel_data* cel)
 
 // land 그리는 함수
 void put_land_cel() {
-
     int count = 0;
     for (int k = 0; k < n_obj; k++) {
         for (int i = 0; i < land[obj[k].kind].height; i++) {
@@ -505,6 +630,11 @@ int main()
 
     // 맵 지형 읽어오기
     load_map();
+
+    // 충돌체 set
+    set_rayman_colider();
+    set_obj_colider();
+
 
     glutInitDisplayMode(GLUT_RGBA); // RGB 그래픽모드 지정
 
