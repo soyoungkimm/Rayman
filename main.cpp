@@ -12,14 +12,15 @@
 #include "glext.h"
 #include <string.h>
 
-#define Wsize 800
+#define Wsize 320
 #define Hsize 200
 #define PaletteSize 100000 // 팔레트 사이즈
+#define JumpPower 35
 
 float Wsize2 = Wsize / 2.;
 float Hsize2 = Hsize / 2.;
 
-int rx = 150, ry = 100; // 레이맨의 현재 좌표
+int rx = 50, ry = 150; // 레이맨의 현재 좌표
 int rayman_dir = 1;   // 0 : 왼쪽, 1 : 오른쪽
 int fps = 0; //  frame 카운터
 float fps_time = 1000.0 / 30.0; // 1 frame time
@@ -29,6 +30,9 @@ bool keys[256];
 bool jump_on = false;
 bool land_on = false;
 int old_obj = -1;    // 없는 obj 번호로 초기화
+int scroll_x = 0, scroll_y = 0; // 스크롤 변수
+
+
 
 // 팔레트 구조체
 struct Color
@@ -54,7 +58,6 @@ cel_data walk[8]; // 레이맨 walk
 cel_data craw[2]; // 레이맨 craw
 cel_data jump[6]; // 레이맨 jump
 cel_data land[3]; // 지형
-
 
 
 // 오브젝트 구조체
@@ -105,6 +108,43 @@ void CrawAnimation(int fps) {
 }
 
 
+void StandAnimation(int fps) {
+    if (fps % 5 == 0) {
+        if (rayman_frame == 0) { // 수그리기
+            rayman_frame = 1;
+            rayman = stand[1];
+        }
+        else { // 서기
+            rayman_frame = 0;
+            rayman = stand[0];
+        }
+    }
+}
+
+
+// 레이맨 충돌체 set 하는 함수
+void set_rayman_colider()
+{
+    // Rayman 충돌 처리의 사각형(충돌체)은 stand[0]레이맨으로 한다.
+    raymanCol.left = (rx - scroll_x) - (stand[0].width / 2);
+    raymanCol.right = (rx - scroll_x) + (stand[0].width / 2);
+    raymanCol.top = (ry + scroll_y) + 13 - 15;
+    raymanCol.bottom = (ry + scroll_y) + 10 - 15;
+}
+
+
+// 지형 충돌체 set 하는 함수
+void set_obj_colider()
+{
+    for (int i = 0; i < n_obj; i++) {
+        objCol[i].left = obj[i].x - scroll_x;
+        objCol[i].right = (obj[i].x - scroll_x) + obj[i].w;
+        objCol[i].top = (Hsize - (obj[i].y - scroll_y)) + 8 + 30;
+        objCol[i].bottom = (Hsize - (obj[i].y - scroll_y)) + 30;
+    }
+}
+
+
 // 충돌 처리(체크)
 void collideCheck() {
     for (int i = 0; i < n_obj; i++)
@@ -135,8 +175,6 @@ void collideCheck() {
 // 중력 처리
 void gravity() {
     if (!land_on && !jump_on) {
-        raymanCol.top += 5;
-        raymanCol.bottom += 5;
         ry += 5;
     }
 }
@@ -144,12 +182,11 @@ void gravity() {
 
 // 점프 중 올라갈 때
 void jump_up() {
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < JumpPower; i++) {
         collideCheck();
         if (jump_on) {
             ry -= 1;
-            raymanCol.top -= 1;
-            raymanCol.bottom -= 1;
+            set_rayman_colider();
         }
         else {
             break;
@@ -160,12 +197,11 @@ void jump_up() {
 
 // 점프 중 내려갈 때
 void jump_down() {
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < JumpPower; i++) {
         collideCheck();
         if (jump_on) {
             ry += 1;
-            raymanCol.top += 1;
-            raymanCol.bottom += 1;
+            set_rayman_colider();
         }
         else {
             break;
@@ -178,13 +214,9 @@ void jump_down() {
 void check_ctrl_left_right() {
     if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_LEFT]) {
         rx -= 10;
-        raymanCol.left -= 10;
-        raymanCol.right -= 10;
     }
     else if (keys[GLUT_ACTIVE_CTRL] && keys[GLUT_KEY_RIGHT]) {
         rx += 10;
-        raymanCol.left += 10;
-        raymanCol.right += 10;
     }
 }
 
@@ -196,8 +228,13 @@ void Timer(int Value)
     if (fps > 65535) fps = 0;     // 65535보다 커지면 0으로 초기화
 
     // --------------  키 입력 감지  ---------------
+
+    // 공중에서 점프못하게 막기
+    if (rayman_jump_frame == 0 && !land_on) {
+        StandAnimation(fps);
+    }
     // 점프 했을 때
-    if (jump_on)
+    else if (jump_on)
     {
         if (fps % 4 == 0) {
             if (rayman_jump_frame == 0) {
@@ -244,15 +281,11 @@ void Timer(int Value)
     {
         if (keys[GLUT_KEY_DOWN] && keys[GLUT_KEY_LEFT]) {
             rx -= 5;
-            raymanCol.left -= 5;
-            raymanCol.right -= 5;
             rayman_dir = 0;
             CrawAnimation(fps);
         }
         else if (keys[GLUT_KEY_DOWN] && keys[GLUT_KEY_RIGHT]) {
             rx += 5;
-            raymanCol.left += 5;
-            raymanCol.right += 5;
             rayman_dir = 1;
             CrawAnimation(fps);
         }
@@ -270,39 +303,60 @@ void Timer(int Value)
         else if (keys[GLUT_KEY_LEFT]) // 왼쪽 키
         {
             rx -= 5;
-            raymanCol.left -= 5;
-            raymanCol.right -= 5;
             rayman_dir = 0;
             WalkAnimation(fps);
         }
         else if (keys[GLUT_KEY_RIGHT]) // 오른쪽 키
         {
             rx += 5;
-            raymanCol.left += 5;
-            raymanCol.right += 5;
             rayman_dir = 1;
             WalkAnimation(fps);
         }
         else // 그냥 서있을 때
         {
-            if (fps % 5 == 0) {
-                if (rayman_frame == 0) { // 수그리기
-                    rayman_frame = 1;
-                    rayman = stand[1];
-                }
-                else { // 서기
-                    rayman_frame = 0;
-                    rayman = stand[0];
-                }
-            }
+            StandAnimation(fps);
         }
     }
 
-    // 중력 처리
-    gravity();
+    // ---------------------- 화면 스크롤 ------------------------
+
+    // 왼쪽으로 못가게 막기
+    if (rx < 40) {
+        rx = 40;
+    }
+
+    // 오른쪽 끝으로 걸으면 - 오른쪽으로 스크롤
+    if (rx - scroll_x > 280) {
+        scroll_x += 5;
+    }
+
+    // 왼쪽으로 끝으로 걸으면 - 왼쪽으로 스크롤
+    // rx > 50 : 처음에 떨어질 때 왼쪽으로 가는거 막기
+    if (rx > 50 && rx - scroll_x < 50) {
+        scroll_x -= 5;
+    }
+
+    // 위로 가면 - 위로 스크롤
+    if (Hsize / 2 > (ry + scroll_y) && (ry + scroll_y) < Hsize) {
+        scroll_y += 5;
+    }
+
+    // 밑으로 떨어지면 - 밑으로 스크롤
+    if (150 > (ry + scroll_y) && (ry + scroll_y) >= 100 && ry < 100) {
+        scroll_y -= 5;
+    }
+
+    // -------------------------------------------------------
+
+    // colider 재 설정
+    set_rayman_colider();
+    set_obj_colider();
 
     // 충돌 판정
     collideCheck();
+
+    // 중력 처리
+    gravity();
 
     glutPostRedisplay(); // dokeyboard 있는 것은 삭제
     glutTimerFunc(fps_time, Timer, 1); // 타이머 재호출
@@ -327,9 +381,6 @@ void DoKeyboard(int key, int x, int y)
     if (glutGetModifiers() == GLUT_ACTIVE_CTRL) {
         keys[GLUT_ACTIVE_CTRL] = true;
     }
-
-    // 현재 창 다시 표시하는 함수 : 이래야 레이맨이 움직임
-    //glutPostRedisplay();
 }
 
 // 키를 놓았을 때
@@ -340,29 +391,6 @@ void doReleaseKey(int keyReleased, int x, int y)
     // ctrl 뗌
     if (keys[GLUT_ACTIVE_CTRL]) {
         keys[GLUT_ACTIVE_CTRL] = false;
-    }
-}
-
-
-// 레이맨 충돌체 set 하는 함수
-void set_rayman_colider()
-{
-    // Rayman 충돌 처리의 사각형(충돌체)은 stand[0]레이맨으로 한다.
-    raymanCol.left = rx - (stand[0].width / 2);
-    raymanCol.right = rx + (stand[0].width / 2);
-    raymanCol.top = ry + 13 - 15;
-    raymanCol.bottom = ry + 10 - 15;
-}
-
-
-// 지형 충돌체 set 하는 함수
-void set_obj_colider()
-{
-    for (int i = 0; i < n_obj; i++) {
-        objCol[i].left = obj[i].x - (obj[i].w / 2) + 40;
-        objCol[i].right = obj[i].x + (obj[i].w / 2) + 40;
-        objCol[i].top = (Hsize - obj[i].y) + 8 + 30;
-        objCol[i].bottom = (Hsize - obj[i].y) + 30;
     }
 }
 
@@ -401,10 +429,7 @@ void load_back(char* filename)
     back.height = 200;
 
     // 파일 읽어오기
-    getc(pFile);
-    getc(pFile);
-    getc(pFile);
-    getc(pFile);
+    fseek(pFile, 4, SEEK_SET);
     back.imageData = (unsigned char*)malloc(sizeof(unsigned char) * (back.width * back.height));
     fread(back.imageData, sizeof(unsigned char), back.width * back.height, pFile);
 
@@ -500,8 +525,6 @@ void put_cel(int is_rayman, int dir, int x, int y, cel_data* cel)
         y -= cel->height;
     }
 
-    //y = Hsize - y;
-
     int count = 0;
     for (int i = 0; i < cel->height; i++) {
         for (int j = 0; j < cel->width; j++) {
@@ -519,7 +542,7 @@ void put_land_cel() {
     for (int k = 0; k < n_obj; k++) {
         for (int i = 0; i < land[obj[k].kind].height; i++) {
             for (int j = 0; j < land[obj[k].kind].width; j++) {
-                set_pixel(obj[k].x + j, Hsize - obj[k].y + i, land[obj[k].kind].imageData[count]);
+                set_pixel((obj[k].x - scroll_x) + j, Hsize - (obj[k].y - scroll_y) + i, land[obj[k].kind].imageData[count]);
                 count++;
             }
         }
@@ -546,7 +569,7 @@ void Render()
     put_land_cel();
 
     // 레이맨 출력
-    put_cel(1, rayman_dir, rx, ry, &rayman);
+    put_cel(1, rayman_dir, rx - scroll_x, ry + scroll_y, &rayman);
 
     glEnd(); // 그래픽 끝
 
@@ -614,7 +637,6 @@ int main()
     glutCreateWindow("Gamejigi DOS Rayman 교육");     // 창제목
 
     glClearColor(0.0, 0.0, 1.0, 0.0);  // R,G,B,A 배경:파란색
-
     glutTimerFunc(fps_time, Timer, 1); //타이머: fps초 뒤에 Timer 함수 실행
 
     // 키 체크
