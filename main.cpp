@@ -84,38 +84,8 @@ void WalkAnimation(int fps) {
     if (rayman_frame >= 8) rayman_frame = 0;
 
     if (fps % 3 == 0) {
-        if (rayman_frame == 0) {
-            rayman_frame = 1;
-            rayman = walk[0];
-        }
-        else if (rayman_frame == 1) {
-            rayman_frame = 2;
-            rayman = walk[1];
-        }
-        else if (rayman_frame == 2) {
-            rayman_frame = 3;
-            rayman = walk[2];
-        }
-        else if (rayman_frame == 3) {
-            rayman_frame = 4;
-            rayman = walk[3];
-        }
-        else if (rayman_frame == 4) {
-            rayman_frame = 5;
-            rayman = walk[4];
-        }
-        else if (rayman_frame == 5) {
-            rayman_frame = 6;
-            rayman = walk[5];
-        }
-        else if (rayman_frame == 6) {
-            rayman_frame = 7;
-            rayman = walk[6];
-        }
-        else if (rayman_frame == 7) {
-            rayman_frame = 0;
-            rayman = walk[7];
-        }
+        rayman = walk[rayman_frame];
+        rayman_frame++;
     }
 }
 
@@ -139,16 +109,17 @@ void CrawAnimation(int fps) {
 void collideCheck() {
     for (int i = 0; i < n_obj; i++)
     {
+        //모든 물체들(obj[i])과 레이맨이 충돌하는지 조사하여 해당물체에 대한 처리
         if (raymanCol.left <= objCol[i].right && raymanCol.top >= objCol[i].bottom &&
             raymanCol.right >= objCol[i].left && raymanCol.bottom <= objCol[i].top)
         {
-            //모든 물체들(obj[i])과 레이맨이 충돌하는지 조사하여 해당물체에 대한 처리
             land_on = true;
             if (i != old_obj) {
                 // 충돌 처리
                 old_obj = i;
                 jump_on = false;
             }
+            // 현재 부딪힌 물체가 떠있는 땅?이면
             if (i == 8 || i == 7 || i == 6 || i == 5) {
                 rayman_jump_frame = 0;
             }
@@ -229,42 +200,42 @@ void Timer(int Value)
     if (jump_on)
     {
         if (fps % 4 == 0) {
-            if (rayman_jump_frame == 8) {
+            if (rayman_jump_frame == 0) {
                 jump_up();
                 check_ctrl_left_right();
-                rayman_jump_frame = 9;
+                rayman_jump_frame = 1;
+                rayman = jump[0];
+            }
+            else if (rayman_jump_frame == 1) {
+                jump_up();
+                check_ctrl_left_right();
+                rayman_jump_frame = 2;
                 rayman = jump[1];
             }
-            else if (rayman_jump_frame == 9) {
+            else if (rayman_jump_frame == 2) {
                 jump_up();
                 check_ctrl_left_right();
-                rayman_jump_frame = 10;
+                rayman_jump_frame = 3;
                 rayman = jump[2];
             }
-            else if (rayman_jump_frame == 10) {
+            else if (rayman_jump_frame == 3) {
                 jump_down();
                 check_ctrl_left_right();
-                rayman_jump_frame = 11;
+                rayman_jump_frame = 4;
                 rayman = jump[3];
             }
-            else if (rayman_jump_frame == 11) {
+            else if (rayman_jump_frame == 4) {
                 jump_down();
                 check_ctrl_left_right();
-                rayman_jump_frame = 12;
+                rayman_jump_frame = 5;
                 rayman = jump[4];
             }
-            else if (rayman_jump_frame == 12) {
+            else if (rayman_jump_frame == 5) {
                 jump_down();
                 check_ctrl_left_right();
-                rayman_jump_frame = 13;
+                rayman_jump_frame = 0;
                 rayman = jump[5];
                 jump_on = false;
-            }
-            else {
-                jump_up();
-                check_ctrl_left_right();
-                rayman_jump_frame = 8;
-                rayman = jump[0];
             }
         }
     }
